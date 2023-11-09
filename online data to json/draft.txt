@@ -1,0 +1,69 @@
+import os
+import requests
+from bs4 import BeautifulSoup
+from urllib.parse import urlparse, urljoin
+
+
+# Function to download a file
+def download_file(url, folder_path):
+    # Make a request to the file URL and download it to the specified folder path
+    response = requests.get(url, stream=True)
+    file_name = os.path.join(folder_path, url.split("/")[-1])
+
+    with open(file_name, 'wb') as file:
+        for chunk in response.iter_content(chunk_size=128):
+            file.write(chunk)
+
+
+# Function to create directories and download files
+def download_files(urls_file_path):
+    # Read URLs from the specified file
+    with open(urls_file_path, 'r') as file:
+        urls = file.readlines()
+
+    # Base directory for organizing files
+    base_dir = 'GZ files'
+
+    # Loop through each URL in the file
+    for url in urls:
+        url = url.strip()  # Remove leading/trailing whitespaces
+        response = requests.get(url, verify=False)
+        soup = BeautifulSoup(response.text, 'html.parser')
+
+        # Assuming your table rows are within a <table> tag
+        rows = soup.find('table').find_all('tr')[1:]  # Skip the header row
+
+        # Get the website name from the URL
+        website_name = urlparse(url).netloc.split('.')[0]
+
+        # Create a subdirectory for each website inside 'GZ files'
+        website_dir = os.path.join(base_dir, website_name)
+        os.makedirs(website_dir, exist_ok=True)
+
+        # Loop through each row in the table
+        for row in rows:
+            columns = row.find_all('td')
+            # Assuming columns is a list or tuple
+            if len(columns) >= 7:
+                name, branch, category, file_type, file_size, update_time, download_link = columns
+                # Rest of your code...
+            else:
+                # Handle the case where there are not enough values in columns
+                print("Error: Not enough values in columns")
+
+            if branch.text.strip():  # Check if branch is not null
+                # Create a subdirectory for each branch inside the website directory
+                folder_path = os.path.join(website_dir, branch.text.strip())
+                os.makedirs(folder_path, exist_ok=True)
+
+                # Join base_url and the file download link to get the complete file URL
+                file_url = urljoin(url, download_link.find('a')['href'])
+                # Call the download_file function to download the file to the specified folder
+                download_file(file_url, folder_path)
+
+
+# Replace 'websites URLs.txt' with the path to your file containing URLs
+url_file_path = 'websites URLs.txt'
+
+# Call the function
+download_files(url_file_path)
